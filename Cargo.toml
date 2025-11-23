@@ -1,0 +1,9 @@
+[package]
+name = "wipecore"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+indicatif = "0.17"
+rand = "0.8"
