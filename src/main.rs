@@ -2,6 +2,15 @@ use std::env;
 use std::fs::{self, OpenOptions};
 use std::io::{self, Seek, SeekFrom, Write};
 
+use rand::RngCore; // for filling buffer with random bytes
+
+// How we want to wipe the file:
+enum WipeMode {
+    Zeros,
+    Random,
+}
+
+
 fn main() {
     let args: Vec<String> = env::args().collect();
 
@@ -11,6 +20,13 @@ fn main() {
     }
 
     let path = &args[1];
+
+    // Parse mode
+    let mode = if args.len() >= 3 {
+        parse_mode(&args[2])
+    } else {
+        WipeMode::Zeros
+    };
 
     // 1) Get file metadata
     let metadata = match fs::metadata(path) {
@@ -34,6 +50,14 @@ fn main() {
 
     println!("Target file: {}", path);
     println!("Size: {} bytes (~{:.2} MiB)", size_bytes, size_bytes as f64 / (1024.0 * 1024.0));
+    println!(
+        "Mode: {}",
+        match mode {
+            WipeMode::Zeros => "zeros",
+            WipeMode::Random => "random",
+        }
+    );
+
 
     // Ask for simple confirmation
     if let Err(e) = confirm_wipe(path) {
@@ -43,7 +67,7 @@ fn main() {
 
     println!("Wipe confirmed...");
 
-    // 3) Open file for read + write
+    //Open file for read + write
     let file = match OpenOptions::new()
         .read(true)
         .write(true)
@@ -56,9 +80,9 @@ fn main() {
         }
     };
 
-    // 4) Perform the wipe (single pass, zeros)
-    if let Err(e) = wipe_with_zeros(file, size_bytes) {
-        eprintln!("Wipe faild: {}", e);
+    // Perform the wipe (single pass) with mode option
+    if let Err(e) = wipe_file(file, size_bytes, mode) {
+        eprintln!("Wipe failed: {}", e);
         return;
     }
 
@@ -92,14 +116,14 @@ fn confirm_wipe(path: &str) -> io::Result<()> {
     Ok(())
 }
 
-/// Overwrite the entire file with 0's.
-fn wipe_with_zeros(mut file: std::fs::File, size: u64) -> io::Result<()> {
-    // from beigning
+/// Overwrite the entire file according to the selected mode.
+fn wipe_file(mut file: std::fs::File, size: u64, mode: WipeMode) -> io::Result<()> {
+    // Always start from the beginning of the file
     file.seek(SeekFrom::Start(0))?;
 
-    // write in 8 MiB chunks
     const CHUNK_SIZE: usize = 8 * 1024 * 1024;
-    let buffer = vec![0u8; CHUNK_SIZE];
+    let mut buffer = vec![0u8; CHUNK_SIZE];
+    let mut rng = rand::thread_rng();
 
     let mut written: u64 = 0;
 
@@ -111,14 +135,36 @@ fn wipe_with_zeros(mut file: std::fs::File, size: u64) -> io::Result<()> {
             CHUNK_SIZE
         };
 
+        match mode {
+            WipeMode::Zeros => {
+                // buffer already full of zeros from initialization
+                // no need to change anything
+            }
+            WipeMode::Random => {
+                // fill only the part we are going to write
+                rng.fill_bytes(&mut buffer[..to_write]);
+            }
+        }
+
         file.write_all(&buffer[..to_write])?;
         written += to_write as u64;
 
-        // print simple progress every ~10%
         let percent = (written as f64 / size as f64) * 100.0;
         println!("Written: {} / {} bytes ({:.1}%)", written, size, percent);
     }
 
     file.flush()?;
     Ok(())
+}
+
+/// Parse the mode string into enum.
+fn parse_mode(s: &str) -> WipeMode {
+    match s.to_lowercase().as_str() {
+        "random" => WipeMode::Random,
+        "zeros" => WipeMode::Zeros,
+        _ => {
+            println!("Unknown mode '{}', defaulting to 'zeros'.", s);
+            WipeMode::Zeros
+        }
+    }
 }
