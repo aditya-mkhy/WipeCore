@@ -4,4 +4,4 @@
 It securely overwrites entire physical drives using multi-pass zeroing or random data — while automatically detecting and protecting the Windows system disk so you never wipe the wrong drive by accident.
 
 
-# under devlopmnt
+*** under devlopmnt ***
