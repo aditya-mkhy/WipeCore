@@ -15,7 +15,9 @@ fn main() {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {
-        eprintln!("Usage: wipecore <file_path>");
+        eprintln!("Usage: wipecore <file_path> [mode] [passes]");
+        eprintln!("  mode:   zeros | random   (default: zeros)");
+        eprintln!("  passes: positive integer (default: 1)");
         return;
     }
 
@@ -28,7 +30,18 @@ fn main() {
         WipeMode::Zeros
     };
 
-    // 1) Get file metadata
+
+    // Parse passes
+    let passes: u32 = if args.len() >= 4 {
+        match args[3].parse() {
+            Ok(n) if n > 0 => n,
+            _ => {println!("Invalid passes value '{}', defaulting to 1.", args[3]); 1}
+        }
+    } else {
+        1
+    };
+
+    // Get file metadata
     let metadata = match fs::metadata(path) {
         Ok(m) => m,
         Err(e) => {
@@ -58,6 +71,7 @@ fn main() {
         }
     );
 
+    println!("Passes: {}", passes);
 
     // Ask for simple confirmation
     if let Err(e) = confirm_wipe(path) {
@@ -80,14 +94,13 @@ fn main() {
         }
     };
 
-    // Perform the wipe (single pass) with mode option
-    if let Err(e) = wipe_file(file, size_bytes, mode) {
+    // Perform the wipe (multi-pass)
+    if let Err(e) = wipe_file(file, size_bytes, mode, passes) {
         eprintln!("Wipe failed: {}", e);
         return;
     }
 
-    println!("Wipe completed");
-
+    println!("Wipe completed {} passes.", passes);
 
 }
 
@@ -116,44 +129,53 @@ fn confirm_wipe(path: &str) -> io::Result<()> {
     Ok(())
 }
 
-/// Overwrite the entire file according to the selected mode.
-fn wipe_file(mut file: std::fs::File, size: u64, mode: WipeMode) -> io::Result<()> {
-    // Always start from the beginning of the file
-    file.seek(SeekFrom::Start(0))?;
-
+// Overwrite the entire file according to the selected mode and passes.
+fn wipe_file(
+    mut file: std::fs::File, size: u64, mode: WipeMode, passes: u32) -> io::Result<()> {
     const CHUNK_SIZE: usize = 8 * 1024 * 1024;
     let mut buffer = vec![0u8; CHUNK_SIZE];
     let mut rng = rand::thread_rng();
 
-    let mut written: u64 = 0;
+    for pass in 1..=passes {
+        println!();
+        println!("=== Starting pass {}/{} ===", pass, passes);
 
-    while written < size {
-        let remaining = size - written;
-        let to_write = if remaining < CHUNK_SIZE as u64 {
-            remaining as usize
-        } else {
-            CHUNK_SIZE
-        };
+        // Always start each pass from the beginning of the file
+        file.seek(SeekFrom::Start(0))?;
 
-        match mode {
-            WipeMode::Zeros => {
-                // buffer already full of zeros from initialization
-                // no need to change anything
+        let mut written: u64 = 0;
+
+        while written < size {
+            let remaining = size - written;
+            let to_write = if remaining < CHUNK_SIZE as u64 {
+                remaining as usize
+            } else {
+                CHUNK_SIZE
+            };
+
+            match mode {
+                WipeMode::Zeros => {
+                    // buffer already full of zeros
+                }
+                WipeMode::Random => {
+                    rng.fill_bytes(&mut buffer[..to_write]);
+                }
             }
-            WipeMode::Random => {
-                // fill only the part we are going to write
-                rng.fill_bytes(&mut buffer[..to_write]);
-            }
+
+            file.write_all(&buffer[..to_write])?;
+            written += to_write as u64;
+
+            let percent = (written as f64 / size as f64) * 100.0;
+            println!(
+                "Pass {}/{}: {} / {} bytes ({:.1}%)",
+                pass, passes, written, size, percent
+            );
         }
 
-        file.write_all(&buffer[..to_write])?;
-        written += to_write as u64;
-
-        let percent = (written as f64 / size as f64) * 100.0;
-        println!("Written: {} / {} bytes ({:.1}%)", written, size, percent);
+        file.flush()?;
+        println!("=== Finished pass {}/{} ===", pass, passes);
     }
 
-    file.flush()?;
     Ok(())
 }
 
