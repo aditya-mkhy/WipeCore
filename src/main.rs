@@ -1,7 +1,7 @@
 use std::env;
 use std::fs::{self, OpenOptions};
 use std::io::{self, Seek, SeekFrom, Write};
-
+use clap::{Parser, ValueEnum};
 use rand::RngCore; // for filling buffer with random bytes
 
 // How we want to wipe the file:
@@ -10,36 +10,33 @@ enum WipeMode {
     Random,
 }
 
+// clap agrs parser
+#[derive(Parser, Debug)]
+#[command(
+    name = "WipeCore",
+    version,
+    about = "Simple file wiper (learning stage before raw disks)"
+)]
+struct Args {
+    /// Target file to wipe
+    target: String,
+
+    /// Wipe mode: zeros | random
+    #[arg(long, value_enum, default_value_t = WipeMode::Zeros)]
+    mode: WipeMode,
+
+    /// Number of overwrite passes
+    #[arg(long, default_value_t = 1)]
+    passes: u32,
+}
+
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
+    // Parse CLI arguments into Args struct
+    let args = Args::parse();
+    //path
+    let path = Path::new(&args.target);
 
-    if args.len() < 2 {
-        eprintln!("Usage: wipecore <file_path> [mode] [passes]");
-        eprintln!("  mode:   zeros | random   (default: zeros)");
-        eprintln!("  passes: positive integer (default: 1)");
-        return;
-    }
-
-    let path = &args[1];
-
-    // Parse mode
-    let mode = if args.len() >= 3 {
-        parse_mode(&args[2])
-    } else {
-        WipeMode::Zeros
-    };
-
-
-    // Parse passes
-    let passes: u32 = if args.len() >= 4 {
-        match args[3].parse() {
-            Ok(n) if n > 0 => n,
-            _ => {println!("Invalid passes value '{}', defaulting to 1.", args[3]); 1}
-        }
-    } else {
-        1
-    };
 
     // Get file metadata
     let metadata = match fs::metadata(path) {
@@ -64,14 +61,13 @@ fn main() {
     println!("Target file: {}", path);
     println!("Size: {} bytes (~{:.2} MiB)", size_bytes, size_bytes as f64 / (1024.0 * 1024.0));
     println!(
-        "Mode: {}",
-        match mode {
+        "Mode:   {}",
+        match args.mode {
             WipeMode::Zeros => "zeros",
             WipeMode::Random => "random",
         }
     );
-
-    println!("Passes: {}", passes);
+    println!("Passes: {}", args.passes);
 
     // Ask for simple confirmation
     if let Err(e) = confirm_wipe(path) {
@@ -95,14 +91,15 @@ fn main() {
     };
 
     // Perform the wipe (multi-pass)
-    if let Err(e) = wipe_file(file, size_bytes, mode, passes) {
+    if let Err(e) = wipe_file(file, size_bytes, args.mode, args.passes) {
         eprintln!("Wipe failed: {}", e);
         return;
     }
 
-    println!("Wipe completed {} passes.", passes);
+    println!("Wipe completed {} passes.", args.passes);
 
 }
+
 
 /// Asking for confirmation before wiping.
 fn confirm_wipe(path: &str) -> io::Result<()> {
