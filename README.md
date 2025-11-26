@@ -86,7 +86,7 @@ wipecore --wipe-disk --mode random --passes 1
 
 ```
 
-## Example: Disk List Output
+## Example: Disk Wipe Output
 
 ```
 Attempting to auto-detect system disk via volume: \\.\C:
