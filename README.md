@@ -7,6 +7,24 @@ This project is still under development — features get added as I learn and im
 
 ---
 
+## Project Structure
+
+```
+wipecore/
+│
+├── src/
+│   ├── main.rs               # CLI parser, dispatch
+│   ├── disk.rs               # Disk listing, system disk detection, size check
+│   ├── wipe.rs               # File + disk wiping engine, progress, passes
+│   ├── utils.rs              # Helpers: size formatting, ETA, conversions
+│   └── prompt.rs             # User confirmation prompts
+│
+├── Cargo.toml
+└── README.md
+```
+
+---
+
 ## Features
 
 - **List physical disks** with size & system disk detection  
@@ -64,6 +82,46 @@ wipecore --wipe-disk --mode zeros --passes 3
 wipecore --wipe-disk --mode random --passes 1
 
 ```
+
+## Example: Disk List Output
+
+```
+Attempting to auto-detect system disk via volume: \\.\C:
+Auto-detected system disk: PhysicalDrive1
+
+=== Disk Wipe Mode ===
+System disk       : PhysicalDrive1
+Wipe mode         : Secureflip
+Passes            : 1
+
+Available disks:
+  [0] \\.\PhysicalDrive0 - 932 GB
+  [1] \\.\PhysicalDrive1 - 466 GB (SYSTEM DISK - PROTECTED)
+
+Enter the disk index you want to WIPE (non-system only), or just press Enter to cancel:
+> 0
+
+You selected: \\.\PhysicalDrive0
+Size:         932 GB
+Mode:         Secureflip
+Passes:       1
+
+THIS WILL IRREVERSIBLY ERASE ALL DATA ON THIS DISK.
+It will NOT touch the system disk (PhysicalDrive1).
+
+Type EXACTLY: WIPE-DISK-0
+Anything else will cancel.
+> WIPE-DISK-0
+
+[*] Opening \\.\PhysicalDrive0 for read/write...
+[*] Starting wipe: \\.\PhysicalDrive0 (mode: Secureflip, passes: 1)
+As you are using 'SecureFlip', passes changed from 1 to 2
+
+=== Starting pass 1/2 ===
+Pass 1/2:    0.06%  |    63.55 MB/s  |   ETA 04:10:00
+
+```
+
 
 ---
 
