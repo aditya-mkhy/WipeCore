@@ -13,7 +13,7 @@ This project is still under development — features get added as I learn and im
 wipecore/
 │
 ├── exe/
-│   ├── wipecore.exe         # executable file
+│   └── wipecore.exe         # executable file
 │
 ├── src/
 │   ├── main.rs               # entry + high-level flow
