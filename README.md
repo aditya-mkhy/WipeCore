@@ -13,11 +13,11 @@ This project is still under development — features get added as I learn and im
 wipecore/
 │
 ├── src/
-│   ├── main.rs               # CLI parser, dispatch
-│   ├── disk.rs               # Disk listing, system disk detection, size check
-│   ├── wipe.rs               # File + disk wiping engine, progress, passes
-│   ├── utils.rs              # Helpers: size formatting, ETA, conversions
-│   └── prompt.rs             # User confirmation prompts
+│   ├── main.rs               # entry + high-level flow
+│   ├── win.rs                # Windows-specific disk stuff
+│   ├── wipe.rs               # wipe logic (file/disk handle)
+│   ├── utils.rs              # helpers (size_format, eta, to_pcwstr)
+│   └── cli.rs                # arguments / flags
 │
 ├── Cargo.toml
 └── README.md
