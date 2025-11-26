@@ -1,0 +1,108 @@
+use std::fs::File;
+use std::io::{self, Seek, SeekFrom, Write};
+use std::path::Path;
+use std::time::Instant;
+
+use clap::ValueEnum;
+use rand::RngCore;
+
+use crate::util::format_eta;
+
+#[derive(Copy, Clone, Debug, ValueEnum)]
+pub enum WipeMode {
+    Zeros,
+    Random,
+}
+
+/// Ask user before wiping a file (not used for disk wipe flow).
+pub fn confirm_wipe(path: &Path) -> io::Result<()> {
+    use std::io::{stdin, stdout};
+
+    println!();
+    println!("This will overwrite the file:");
+    println!("  {}", path.display());
+    println!("This CANNOT be undone.");
+    println!();
+    println!("Type 'YES' to continue:");
+
+    print!("> ");
+    stdout().flush()?; // make sure the prompt shows
+
+    let mut input = String::new();
+    stdin().read_line(&mut input)?;
+
+    if input.trim() != "YES" {
+        println!("Aborted by user.");
+        std::process::exit(0);
+    }
+
+    Ok(())
+}
+
+/// Core wipe logic. Works for both files and physical drives.
+pub fn wipe_file(
+    mut file: File,
+    size: u64,
+    mode: WipeMode,
+    passes: u32,
+) -> io::Result<()> {
+    use std::io::stdout;
+
+    const CHUNK: usize = 8 * 1024 * 1024;
+    let mut buf = vec![0u8; CHUNK];
+    let mut rng = rand::thread_rng();
+
+    for pass in 1..=passes {
+        println!();
+        println!("=== Starting pass {}/{} ===", pass, passes);
+
+        file.seek(SeekFrom::Start(0))?;
+        let start = Instant::now();
+        let mut written: u64 = 0;
+
+        while written < size {
+            let left = size - written;
+            let to_write = if left < CHUNK as u64 { left as usize } else { CHUNK };
+
+            match mode {
+                WipeMode::Zeros => {
+                    // buf is already zeroed
+                }
+                WipeMode::Random => {
+                    rng.fill_bytes(&mut buf[..to_write]);
+                }
+            }
+
+            file.write_all(&buf[..to_write])?;
+            written += to_write as u64;
+
+            let elapsed = start.elapsed();
+            let secs = elapsed.as_secs_f64().max(0.000_001);
+
+            let percent = (written as f64 / size as f64) * 100.0;
+            let written_mib = written as f64 / (1024.0 * 1024.0);
+            let speed_mib_s = written_mib / secs;
+
+            let remain_bytes = size - written;
+            let eta_secs = if speed_mib_s > 0.0 {
+                (remain_bytes as f64 / (1024.0 * 1024.0) / speed_mib_s).max(0.0) as u64
+            } else {
+                0
+            };
+
+            let eta_str = format_eta(eta_secs);
+
+            print!(
+                "\rPass {}/{}: {:6.2}% | {:7.2} MiB/s | ETA {}",
+                pass, passes, percent, speed_mib_s, eta_str
+            );
+            stdout().flush().ok();
+        }
+
+        file.flush()?;
+        println!();
+        println!("=== Finished pass {}/{} ===", pass, passes);
+    }
+
+    Ok(())
+}
