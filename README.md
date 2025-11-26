@@ -5,7 +5,8 @@ It can securely erase files or entire physical drives using safe overwrite patte
 
 This project is still under development — features get added as I learn and improve.
 
----
+
+
 
 ## Project Structure
 
@@ -26,7 +27,8 @@ wipecore/
 └── README.md
 ```
 
----
+
+
 
 ## Features
 
@@ -44,7 +46,8 @@ wipecore/
 - **File wipe support**  
 - Confirmations before dangerous operations
 
----
+
+
 
 ## Wipe Modes
 
@@ -61,7 +64,8 @@ Two-pass overwrite:
 
 If user sets passes < 2, WipeCore automatically upgrades it to 2.
 
----
+
+
 
 ## Usage
 
@@ -126,7 +130,8 @@ Pass 1/2:    0.06%  |    63.55 MB/s  |   ETA 04:10:00
 ```
 
 
----
+
+
 
 ## Warning
 
@@ -135,4 +140,3 @@ If you run it on the wrong disk, everything on that disk will be erased.
 
 Double-check your disk number before wiping.
 
----
