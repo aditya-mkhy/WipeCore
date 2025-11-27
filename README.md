@@ -4,7 +4,6 @@ WipeCore is a fast and simple disk wiping tool written in Rust.
 It can securely erase files or entire physical drives using safe overwrite patterns like zero-fill, random bytes, or the **SecureFlip** (0 → 1) method.
 
 This project is still under development — features get added as I learn and improve.
-
 <br>
 
 
@@ -26,8 +25,8 @@ wipecore/
 ├── Cargo.toml
 └── README.md
 ```
-
 <br>
+
 
 ## Features
 
@@ -44,8 +43,6 @@ wipecore/
 - **System drive protection**  
 - **File wipe support**  
 - Confirmations before dangerous operations
-
-
 <br>
 
 
@@ -63,7 +60,6 @@ Two-pass overwrite:
 2. Pass 2 → `0xFF`
 
 If user sets passes < 2, WipeCore automatically upgrades it to 2.
-
 <br>
 
 
@@ -128,7 +124,6 @@ As you are using 'SecureFlip', passes changed from 1 to 2
 Pass 1/2:    0.06%  |    63.55 MB/s  |   ETA 04:10:00
 
 ```
-
 <br>
 
 

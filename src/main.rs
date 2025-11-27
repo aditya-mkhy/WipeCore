@@ -72,10 +72,10 @@ fn main() {
         return;
     }
 
-    println!("Target file: {}", path.display());
-    println!("Size:   {}", size_format(size_bytes));
-    println!("Mode:   {:?}", args.mode);
-    println!("Passes: {}", args.passes);
+    println!("Target file : {}", path.display());
+    println!("Size :   {}", size_format(size_bytes));
+    println!("Mode :   {:?}", args.mode);
+    println!("Passes : {}", args.passes);
 
     if let Err(e) = confirm_wipe(path) {
         eprintln!("Error reading confirmation: {}", e);
@@ -96,5 +96,5 @@ fn main() {
     }
 
     println!();
-    println!("[+] Wipe completed ({} pass(es)).", args.passes);
+    println!("[+] Wipe completed ({} passes).", args.passes);
 }
