@@ -53,6 +53,7 @@ pub fn wipe_file(
     let mut buf = vec![0u8; CHUNK];
     let mut rng = rand::thread_rng();
 
+    // SecureFlip should always be at least 2 passes
     if let WipeMode::Secureflip = mode {
         if passes < 2 {
             println!(
@@ -71,56 +72,70 @@ pub fn wipe_file(
         let start = Instant::now();
         let mut written: u64 = 0;
 
+        // ---- pre-fill buffer ONCE per pass when pattern is fixed ----
+        let static_pattern: Option<u8> = match mode {
+            WipeMode::Secureflip => {
+                // odd pass -> zeros, even pass -> ones
+                if pass % 2 == 1 {
+                    Some(0x00)
+                } else {
+                    Some(0xFF)
+                }
+            }
+            WipeMode::Zeros => Some(0x00),
+            WipeMode::Random => None,
+        };
+
+        if let Some(byte) = static_pattern {
+            buf.fill(byte);
+        }
+        // --------------------------------------------------------------
+
+        // NEW: throttle progress output
+        let mut last_print = Instant::now();
+
         while written < size {
             let left = size - written;
-            let to_write = if left < CHUNK as u64 { left as usize } else { CHUNK };
+            let to_write = if left < CHUNK as u64 {
+                left as usize
+            } else {
+                CHUNK
+            };
 
-            // fill buffer for this chunk
-            match mode {
-                WipeMode::Secureflip => {
-                    if pass % 2 == 1 {
-                        // odd pass -> zeros
-                        buf[..to_write].fill(0x00);
-                    } else {
-                        // even pass -> ones (0xFF)
-                        buf[..to_write].fill(0xFF);
-                    }
-                }
-
-                WipeMode::Zeros => {
-                    buf[..to_write].fill(0x00);
-                }
-
-                WipeMode::Random => {
-                    rng.fill_bytes(&mut buf[..to_write]);
-                }
+            // For Random mode, we still need fresh random data per chunk
+            if matches!(mode, WipeMode::Random) {
+                rng.fill_bytes(&mut buf[..to_write]);
             }
 
             // write the chunk
             file.write_all(&buf[..to_write])?;
             written += to_write as u64;
 
-            // progress / speed / ETA
-            let elapsed = start.elapsed();
-            let secs = elapsed.as_secs_f64().max(0.000_001);
+            // Only update progress every ~200ms or on completion
+            if last_print.elapsed().as_millis() >= 200 || written == size {
+                let elapsed = start.elapsed();
+                let secs = elapsed.as_secs_f64().max(0.000_001);
 
-            let percent = (written as f64 / size as f64) * 100.0;
-            let written_mib = written as f64 / (1024.0 * 1024.0);
-            let speed_mib_s = written_mib / secs;
+                let percent = (written as f64 / size as f64) * 100.0;
+                let written_mib = written as f64 / (1024.0 * 1024.0);
+                let speed_mib_s = written_mib / secs;
 
-            let remain_bytes = size - written;
-            let eta_secs = if speed_mib_s > 0.0 {
-                (remain_bytes as f64 / (1024.0 * 1024.0) / speed_mib_s).max(0.0) as u64
-            } else {
-                0
-            };
-            let eta_str = format_eta(eta_secs);
+                let remain_bytes = size - written;
+                let eta_secs = if speed_mib_s > 0.0 {
+                    (remain_bytes as f64 / (1024.0 * 1024.0) / speed_mib_s)
+                        .max(0.0) as u64
+                } else {
+                    0
+                };
+                let eta_str = format_eta(eta_secs);
 
-            print!(
-                "\rPass {}/{}:  {:6.2}%  |  {:7.2} MB/s  |   ETA {}",
-                pass, passes, percent, speed_mib_s, eta_str
-            );
-            stdout().flush().ok();
+                print!(
+                    "\rPass {}/{}:  {:6.2}%  |  {:7.2} MB/s  |   ETA {}",
+                    pass, passes, percent, speed_mib_s, eta_str
+                );
+                stdout().flush().ok();
+                last_print = Instant::now();
+            }
         }
 
         file.flush()?;
@@ -128,6 +143,5 @@ pub fn wipe_file(
         println!("=== Finished pass {}/{} ===", pass, passes);
     }
 
-    // done
     Ok(())
 }
