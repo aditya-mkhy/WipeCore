@@ -38,7 +38,7 @@ wipecore/
 - **Raw disk wipe support** (`\\.\PhysicalDriveX`)  
 - **Real-time progress bar**  
   - percentage  
-  - speed (MiB/s)  
+  - speed (MB/s)  
   - ETA  
 - **System drive protection**  
 - **File wipe support**  
